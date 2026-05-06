@@ -1,16 +1,16 @@
 import pytest
 import logging
-from models import MyTable
+from models import ClickbaitAnalyzer, COLUMN_NAME_TITLE
 
 
 @pytest.fixture
 def table():
-    return MyTable()
+    return ClickbaitAnalyzer()
 
 
 @pytest.fixture
 def table_success():
-    return MyTable()
+    return ClickbaitAnalyzer()
 
 
 def test_append_success(table):
@@ -18,7 +18,8 @@ def test_append_success(table):
     table.append(row)
     assert len(table.data) == 1
     assert table.data[0] == ["Я бросил IT и стал фермером", 18.2, 35, 45200, 1240, 4.2]
-    for value, target_type in zip(table.data[0], table.TYPES):
+    types = list(COLUMN_NAME_TITLE.values())
+    for value, target_type in zip(table.data[0], types):
         assert isinstance(value, target_type)
 
 
@@ -73,31 +74,23 @@ def test_sort_data_data_validation_error(table, caplog):
     assert "Data validation error: Column name 'qwert' not found" in caplog.text
 
 
-def test_remove_if_less_validation_error(table, caplog):
+def test_filter_by_validation_error(table, caplog):
     with caplog.at_level(logging.ERROR):
         table.load("test.csv")
-        table.remove_if_less("qwert", 15)
-    assert "Data validation error: Column name 'qwert' not found" in caplog.text
+        table.filter_by("qwert", 15, "greater")
+    assert "Filter error: Column 'qwert' not found in configuration" in caplog.text
 
-
-def test_remove_if_greater_validation_error(table, caplog):
-    with caplog.at_level(logging.ERROR):
-        table.load("test.csv")
-        table.remove_if_greater("qwert", 15)
-    assert "Data validation error: Column name 'qwert' not found" in caplog.text
-
-
-def test_remove_success(table, table_success):
+def test_filter_by(table, table_success):
     table.load("test.csv")
-    table.remove_if_less("ctr", 15)
-    table.remove_if_greater("retention_rate", 40)
+    table.filter_by("ctr", 15, "greater")
+    table.filter_by("retention_rate", 40, "less")
     assert len(table.data) == 34
 
 
-def test_show_standard(table, capsys):
+def test_show_default(table, capsys):
     row = ["Я бросил IT и стал фермером", "18.2", "35", "45200", "1240", "4.2"]
     table.append(row)
-    table.standard()
+    table.default()
     captured = capsys.readouterr()
     assert "Я бросил IT и стал фермером" in captured.out
     assert "╒" in captured.out
