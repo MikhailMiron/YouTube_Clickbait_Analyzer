@@ -2,6 +2,7 @@ import os
 from tabulate import tabulate
 import csv
 import logging
+import copy
 import operator
 
 logging.basicConfig(
@@ -23,15 +24,22 @@ COLUMN_NAME_TITLE = {
 
 
 class ClickbaitAnalyzer:
-    #COLUMNS = ["title", "ctr", "retention_rate", "views", "likes", "avg_watch_time"]
-    #TYPES = [str, float, int, int, int, float]
-
 
     def __init__(self, files=None):
         self.data = []
         if files:
             for file_path in files:
                 self.load(file_path)
+
+
+
+    def copy(self):
+        new_table = ClickbaitAnalyzer()
+        new_table.data = copy.deepcopy(self.data)
+        if hasattr(self, 'COLUMNS'):
+            new_table.COLUMNS = list(self.COLUMNS)
+        logger.info("Table copy created successfully")
+        return new_table
 
 
     def append(self, row):

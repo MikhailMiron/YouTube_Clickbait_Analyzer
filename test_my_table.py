@@ -13,6 +13,36 @@ def table_success():
     return ClickbaitAnalyzer()
 
 
+def test_table_copy_data_equality(table):
+    """Проверяем, что данные в копии идентичны оригиналу"""
+    row = ["Я бросил IT и стал фермером", "18.2", "35", "45200", "1240", "4.2"]
+    table.append(row)
+
+    table_copy = table.copy()
+
+    # Данные должны быть одинаковыми
+    assert table_copy.data == table.data
+    # Но это должны быть разные объекты в памяти
+    assert table_copy is not table
+    assert table_copy.data is not table.data
+
+
+def test_table_copy_independence(table):
+    row1 = ["Я бросил IT и стал фермером", "18.2", "35", "45200", "1240", "4.2"]
+    row2 = ["Как я спал по 4 часа и ничего не понял", "22.5", "28", "128700", "3150", "3.1"]
+    table.append(row1)
+    table.append(row2)
+    table_copy = table.copy()
+
+    # Фильтруем копию (удаляем "Видео 1")
+    table_copy.filter_by("retention_rate", 30, mode="greater")
+
+    # В копии должна остаться 1 строка, в оригинале — по-прежнему 2
+    assert len(table_copy.data) == 1
+    assert len(table.data) == 2
+    assert table.data[0][0] == "Я бросил IT и стал фермером"  # Оригинал не изменился
+
+
 def test_append_success(table):
     row = ["Я бросил IT и стал фермером", "18.2", "35", "45200", "1240", "4.2"]
     table.append(row)
