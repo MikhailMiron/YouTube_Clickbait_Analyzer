@@ -1,6 +1,6 @@
 import pytest
 import logging
-from models import ClickbaitAnalyzer, COLUMN_NAME_TITLE
+from models import ClickbaitAnalyzer
 
 
 @pytest.fixture
@@ -14,15 +14,10 @@ def table_success():
 
 
 def test_table_copy_data_equality(table):
-    """Проверяем, что данные в копии идентичны оригиналу"""
     row = ["Я бросил IT и стал фермером", "18.2", "35", "45200", "1240", "4.2"]
     table.append(row)
-
     table_copy = table.copy()
-
-    # Данные должны быть одинаковыми
     assert table_copy.data == table.data
-    # Но это должны быть разные объекты в памяти
     assert table_copy is not table
     assert table_copy.data is not table.data
 
@@ -33,14 +28,10 @@ def test_table_copy_independence(table):
     table.append(row1)
     table.append(row2)
     table_copy = table.copy()
-
-    # Фильтруем копию (удаляем "Видео 1")
-    table_copy.filter_by("retention_rate", 30, mode="greater")
-
-    # В копии должна остаться 1 строка, в оригинале — по-прежнему 2
+    table_copy.filter_by("retention_rate", 30, mode="gt")
     assert len(table_copy.data) == 1
     assert len(table.data) == 2
-    assert table.data[0][0] == "Я бросил IT и стал фермером"  # Оригинал не изменился
+    assert table.data[0][0] == "Я бросил IT и стал фермером"
 
 
 def test_append_success(table):
@@ -48,7 +39,7 @@ def test_append_success(table):
     table.append(row)
     assert len(table.data) == 1
     assert table.data[0] == ["Я бросил IT и стал фермером", 18.2, 35, 45200, 1240, 4.2]
-    types = list(COLUMN_NAME_TITLE.values())
+    types = list(table.COLUMN_NAME_TITLE.values())
     for value, target_type in zip(table.data[0], types):
         assert isinstance(value, target_type)
 
@@ -92,7 +83,7 @@ def test_load_csv_file_not_found(table, caplog):
 
 def test_sort_data_success(table, table_success):
     table.load("test.csv")
-    table.sort_data("ctr", True)
+    table.sort_data(table.CTR, True)
     table_success.load("test_sort.csv")
     assert table.data == table_success.data
 
@@ -107,13 +98,13 @@ def test_sort_data_data_validation_error(table, caplog):
 def test_filter_by_validation_error(table, caplog):
     with caplog.at_level(logging.ERROR):
         table.load("test.csv")
-        table.filter_by("qwert", 15, "greater")
+        table.filter_by("qwert", 15, "gt")
     assert "Filter error: Column 'qwert' not found in configuration" in caplog.text
 
 def test_filter_by(table, table_success):
     table.load("test.csv")
-    table.filter_by("ctr", 15, "greater")
-    table.filter_by("retention_rate", 40, "less")
+    table.filter_by(table.CTR, 15, "gt")
+    table.filter_by(table.RETENTION, 40, "lt")
     assert len(table.data) == 34
 
 
@@ -124,24 +115,24 @@ def test_show_default(table, capsys):
     captured = capsys.readouterr()
     assert "Я бросил IT и стал фермером" in captured.out
     assert "╒" in captured.out
-    assert "title" in captured.out
-    assert "ctr" in captured.out
-    assert "retention_rate" in captured.out
-    assert "views" in captured.out
-    assert "likes" in captured.out
-    assert "avg_watch_time" in captured.out
+    assert table.TITLE in captured.out
+    assert table.CTR in captured.out
+    assert table.RETENTION in captured.out
+    assert table.VIEWS in captured.out
+    assert table.LIKES in captured.out
+    assert table.WATCH_TIME in captured.out
 
 
 def test_show_clickbait(table, capsys):
     table.load("test.csv")
     table.clickbait()
     captured = capsys.readouterr()
-    assert "title" in captured.out
-    assert "ctr" in captured.out
-    assert "retention_rate" in captured.out
-    assert "views" not in captured.out
-    assert "likes" not in captured.out
-    assert "avg_watch_time" not in captured.out
+    assert table.TITLE in captured.out
+    assert table.CTR in captured.out
+    assert table.RETENTION in captured.out
+    assert table.VIEWS not in captured.out
+    assert table.LIKES not in captured.out
+    assert table.WATCH_TIME not in captured.out
 
 
 def test_show_no_data(table, capsys):

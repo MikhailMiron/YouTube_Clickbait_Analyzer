@@ -13,17 +13,25 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-COLUMN_NAME_TITLE = {
-    "title" : str,
-    "ctr" : float,
-    "retention_rate" : int,
-    "views" : int,
-    "likes" : int,
-    "avg_watch_time" : float
-}
+
 
 
 class ClickbaitAnalyzer:
+    TITLE = "title"
+    CTR = "ctr"
+    RETENTION = "retention_rate"
+    VIEWS = "views"
+    LIKES = "likes"
+    WATCH_TIME = "avg_watch_time"
+
+    COLUMN_NAME_TITLE = {
+        TITLE: str,
+        CTR: float,
+        RETENTION: int,
+        VIEWS: int,
+        LIKES: int,
+        WATCH_TIME: float
+    }
 
     def __init__(self, files=None):
         self.data = []
@@ -36,18 +44,16 @@ class ClickbaitAnalyzer:
     def copy(self):
         new_table = ClickbaitAnalyzer()
         new_table.data = copy.deepcopy(self.data)
-        if hasattr(self, 'COLUMNS'):
-            new_table.COLUMNS = list(self.COLUMNS)
         logger.info("Table copy created successfully")
         return new_table
 
 
     def append(self, row):
         try:
-            if len(row) != len(COLUMN_NAME_TITLE):
-                raise ValueError(f"Expected {len(COLUMN_NAME_TITLE)} columns per row: {row}")
+            if len(row) != len(self.COLUMN_NAME_TITLE):
+                raise ValueError(f"Expected {len(self.COLUMN_NAME_TITLE)} columns per row: {row}")
             converted_row = []
-            for value, target_type in zip(row, COLUMN_NAME_TITLE.values()):
+            for value, target_type in zip(row, self.COLUMN_NAME_TITLE.values()):
                 converted_value = target_type(value)
                 converted_row.append(converted_value)
             self.data.append(converted_row)
@@ -82,14 +88,15 @@ class ClickbaitAnalyzer:
 
 
     def sort_data(self, column_name=None, reverse=False):
+        if not self.data:
+            logger.warning("Attempted to sort an empty table. Skipping.")
+            return
         try:
-            if not self.data:
-                raise ValueError("No data")
-            if  column_name and column_name not in COLUMN_NAME_TITLE.keys():
+            if  column_name and column_name not in self.COLUMN_NAME_TITLE.keys():
                 raise ValueError(f"Column name '{column_name}' not found")
             column_index = 0
             if column_name:
-                column_index = list(COLUMN_NAME_TITLE.keys()).index(column_name)
+                column_index = list(self.COLUMN_NAME_TITLE.keys()).index(column_name)
             self.data.sort(key=lambda x: x[column_index], reverse=reverse)
         except ValueError as e:
             logger.error(f"Data validation error: {e}")
@@ -98,21 +105,21 @@ class ClickbaitAnalyzer:
 
 
 
-    def filter_by(self, column_name, threshold, mode="greater"):
+    def filter_by(self, column_name, threshold, mode="gt"):
         ops = {
-            "greater": operator.gt,  # >
-            "less": operator.lt,  # <
+            "gt": operator.gt,  # >
+            "lt": operator.lt,  # <
             "ge": operator.ge,  # >=
             "le": operator.le  # <=
         }
         try:
-            if column_name not in COLUMN_NAME_TITLE:
+            if column_name not in self.COLUMN_NAME_TITLE:
                 raise ValueError(f"Column '{column_name}' not found in configuration")
             if mode not in ops:
                 raise ValueError(f"Invalid mode '{mode}'. Available: {list(ops.keys())}")
-            column_index = list(COLUMN_NAME_TITLE.keys()).index(column_name)
+            column_index = list(self.COLUMN_NAME_TITLE.keys()).index(column_name)
             op_func = ops[mode]
-            target_type = COLUMN_NAME_TITLE[column_name]
+            target_type = self.COLUMN_NAME_TITLE[column_name]
             typed_threshold = target_type(threshold)
             initial_count = len(self.data)
             self.data = [row for row in self.data if op_func(row[column_index], typed_threshold)]
@@ -130,11 +137,11 @@ class ClickbaitAnalyzer:
         if not self.data:
             print("No data")
         elif show_cols is None:
-            print(tabulate(self.data, headers=list(COLUMN_NAME_TITLE.keys()), tablefmt="fancy_grid"))
+            print(tabulate(self.data, headers=list(self.COLUMN_NAME_TITLE.keys()), tablefmt="fancy_grid"))
         else:
-            all_columns = list(COLUMN_NAME_TITLE.keys())
-            indices = [all_columns.index(c) for c in show_cols if c in COLUMN_NAME_TITLE]
-            headers = [all_columns[i] for i in indices]
+            all_columns = list(self.COLUMN_NAME_TITLE.keys())
+            headers = [c for c in show_cols if c in self.COLUMN_NAME_TITLE]
+            indices = [all_columns.index(c) for c in headers]
             filtered_data = [[row[i] for i in indices] for row in self.data]
             print(tabulate(filtered_data, headers=headers, tablefmt="fancy_grid"))
 
@@ -153,10 +160,11 @@ class ClickbaitAnalyzer:
 
 
     def clickbait(self):
-        self.filter_by("ctr", 15, "greater")
-        self.filter_by("retention_rate", 40, "less")
-        self.sort_data("ctr", True)
-        self.show(["title", "ctr", "retention_rate"])
+        report_table = self.copy()
+        report_table.filter_by(self.CTR, 15, "gt")
+        report_table.filter_by(self.RETENTION, 40, "lt")
+        report_table.sort_data(self.CTR, True)
+        report_table.show([self.TITLE, self.CTR, self.RETENTION])
 
 
     def default(self):
